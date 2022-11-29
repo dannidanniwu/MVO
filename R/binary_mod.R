@@ -5,9 +5,10 @@ library(posterior)
 library(slurmR)
 library(dplyr)
 library(ggplot2)
-mod <- cmdstan_model("./binary_mod_stan.stan");
-s_generate <- function(beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the contribution from the two sources of variation. 
-                       sigma_beta_0=0.5, sigma_beta_1=0.7,
+set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
+mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/binary_mod_stan.stan");
+s_generate <- function(beta_0=-0.7, beta_1=0.5,beta_2=0.4, beta_3=0.2,#controls the contribution from the two sources of variation. 
+                       sigma_beta_0=0.2, sigma_beta_1=0.1,
                        n_train = 400) {
   
   def <- defData(varname = "A", formula = "1;1", dist = "trtAssign")
@@ -36,6 +37,7 @@ s_generate <- function(beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the con
 }
 
 mvo_model <- function(iter, generated_data,mod){
+  set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
   x <- model.matrix( ~ cov_1, data = generated_data)[,-1]
   y <- generated_data[,c("y_1","y_2","y_3")]
   
@@ -86,8 +88,8 @@ mvo_model <- function(iter, generated_data,mod){
                     y_3_p=y_eq1_p[3]
                     ))
 }
-s_train <- function(iter,beta_0=1, beta_1=2,beta_2=3,beta_3=2.5,#controls the contribution from the two sources of variation. 
-                    sigma_beta_0=0.5, sigma_beta_1=0.7,
+s_train <- function(iter,beta_0=-0.7, beta_1=0.5,beta_2=0.4, beta_3=0.2,#controls the contribution from the two sources of variation. 
+                    sigma_beta_0=0.2, sigma_beta_1=0.1,
                     n_train = 400,mod){
   generated_data <- s_generate(beta_0=beta_0, beta_1=beta_1,beta_2=beta_2,beta_3=beta_3,#controls the contribution from the two sources of variation. 
                                sigma_beta_0=sigma_beta_0, sigma_beta_1=sigma_beta_1,
@@ -97,29 +99,57 @@ s_train <- function(iter,beta_0=1, beta_1=2,beta_2=3,beta_3=2.5,#controls the co
   mvo_results <- mvo_model(iter=1,generated_data,mod)
   return(mvo_results)
 }
-bayes_result <- rbindlist(lapply(1:100, function(x) s_train(x,beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the contribution from the two sources of variation. 
-                                                           sigma_beta_0=0.5, sigma_beta_1=0.7,
-                                                           n_train = 400,mod=mod)))
+# bayes_result <- rbindlist(lapply(1:20, function(x) s_train(x,beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the contribution from the two sources of variation. 
+#                                                            sigma_beta_0=0.5, sigma_beta_1=0.7,
+#                                                            n_train = 400,mod=mod)))
+# 
+# save(bayes_result,file="./bayes_result.rda")
+# 
+# apply(bayes_result,2,function(x) round(x,digits = 1))
 
-save(bayes_result,file="./binary_model_res.rda")
+job <- Slurm_lapply(
+  X = 1:100,
+  FUN = s_train,
+  beta_0= -0.7, 
+  beta_1=0.5,
+  beta_2=0.4, 
+  beta_3=0.2,#controls the contribution from the two sources of variation. 
+  sigma_beta_0=0.2, 
+  sigma_beta_1=0.1,
+  n_train = 400,mod=mod,
+  njobs = 25,
+  mc.cores = 4L,
+  job_name = "mvo_5",
+  tmp_path = "/gpfs/data/troxellab/danniw/scratch",
+  plan = "wait",
+  sbatch_opt = list(time = "4:00:00", partition = "cpu_dev", `mem-per-cpu` = "5G"),
+  export = c("s_generate", "mvo_model"),
+  overwrite = TRUE
+)
 
-apply(bayes_result,2,function(x) round(x,digits = 1))
-#
+
+res <- Slurm_collect(job)
+res <- rbindlist(res)
+save(res, file = "/gpfs/data/troxellab/danniw/data/binary_model_res_v2.rda")
+
+
+
 
 ####--plot---#####
-gener_y1 <- data.frame(iter=1,
-                       beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the contribution from the two sources of variation. 
-                       sigma_beta_0=0.5, sigma_beta_1=0.7,
-                       Md="True value")
-
-M_MVO <- subset(bayes_result,select=-c(y_1_p, y_2_p,  y_3_p,div, tree_hit))
-M_MVO$Md <- "Estimated"
-D_all <-rbind(M_MVO,gener_y1)
-
-M_data <- reshape2::melt(D_all,id=c("iter","Md"))
-
-ggplot(M_data, aes(x=variable, y=value,fill=Md)) +
-  geom_boxplot(width=0.25,position = position_dodge(width = 0.5))+ theme_minimal()+
-  labs(title="MVO: Posterior mean of paramters",
-       y = "Posterior mean")+facet_wrap(~variable,scale=c("free"), labeller = label_parsed)+
-  theme(strip.text.x = element_blank())+labs(fill="CLASS")
+# bayes_result <- res
+# gener_y1 <- data.frame(iter=1,
+#                        beta_0=1, beta_1=2,beta_2=3, beta_3=2.5,#controls the contribution from the two sources of variation.
+#                        sigma_beta_0=0.5, sigma_beta_1=0.7,
+#                        Md="True value")
+# 
+# M_MVO <- subset(bayes_result,select=-c(y_1_p, y_2_p,  y_3_p,div, tree_hit))
+# M_MVO$Md <- "Estimated"
+# D_all <-rbind(M_MVO,gener_y1)
+# 
+# M_data <- reshape2::melt(D_all,id=c("iter","Md"))
+# 
+# ggplot(M_data, aes(x=variable, y=value,fill=Md)) +
+#   geom_boxplot(width=0.25,position = position_dodge(width = 0.5))+ theme_minimal()+
+#   labs(title="MVO: Posterior mean of paramters",
+#        y = "Posterior mean")+facet_wrap(~variable,scale=c("free"), labeller = label_parsed)+
+#   theme(strip.text.x = element_blank())+labs(fill="CLASS")
