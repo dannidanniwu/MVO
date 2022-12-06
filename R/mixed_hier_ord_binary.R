@@ -15,10 +15,11 @@ mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/mixed_hier_ord_binary.stan")
 s_generate <- function(beta_0=-0.7, beta_1_1=0.35,
                        beta_1_2=0.4,beta_1_3=0.38,
                        beta_1_4=0.42,
-                       beta_2=0.4, 
-                       beta_3=0.2,#controls the contribution from the two sources of variation. 
+                       beta_2_1=0.4, beta_2_2=0.39,
+                       beta_2_3=0.38,beta_2_4=0.41,
+                       beta_3_1=0.2,beta_3_2=0.19,
+                       beta_3_3=0.18,beta_3_4=0.21,
                        sigma_beta_0=0.2, sigma_beta_1=0.1, 
-                       sigma_beta_2 = 0.01,sigma_beta_3 = 0.025,
                        basestudy= c(.31, .29, .20, .20),
                        n_train = 400) {
   
@@ -31,43 +32,23 @@ s_generate <- function(beta_0=-0.7, beta_1_1=0.35,
   def <- defData(def, varname="beta_1_ind",formula = "0", 
                  variance= "..sigma_beta_1", dist="normal") 
   
-  def <- defData(def, varname="beta_2_1",formula = "..beta_2", 
-                 variance= "..sigma_beta_2", dist="normal")  
-  def <- defData(def, varname="beta_2_2",formula = "..beta_2", 
-                 variance= "..sigma_beta_2", dist="normal")  
-  def <- defData(def, varname="beta_2_3",formula = "..beta_2", 
-                 variance= "..sigma_beta_2", dist="normal") 
-  def <- defData(def, varname="beta_2_4",formula = "..beta_2", 
-                 variance= "..sigma_beta_2", dist="normal")
-  
-  def <- defData(def, varname="beta_3_1",formula = "..beta_3", 
-                 variance= "..sigma_beta_3", dist="normal")  
-  def <- defData(def, varname="beta_3_2",formula = "..beta_3", 
-                 variance= "..sigma_beta_3", dist="normal")  
-  def <- defData(def, varname="beta_3_3",formula = "..beta_3", 
-                 variance= "..sigma_beta_3", dist="normal")  
-  def <- defData(def, varname="beta_3_4",formula = "..beta_3", 
-                 variance= "..sigma_beta_3", dist="normal")  
-  
-  
-  
   #define canonical parameter for 4 outcomes: 
   def <- defData(def, varname = "y_1_hat", 
                  formula = "..beta_1_1*cov_1 +
-                      A*(beta_2_1 + beta_0_ind + beta_3_1*cov_1 + beta_1_ind*cov_1) ",
+                      A*(..beta_2_1 + beta_0_ind + ..beta_3_1*cov_1 + beta_1_ind*cov_1) ",
                  link="nonrandom")
   def <- defData(def, varname = "y_2",dist="binary",  
                  formula = "..beta_0 + ..beta_1_2*cov_1 +
-                      A*(beta_2_2 + beta_0_ind + beta_3_2*cov_1 + beta_1_ind*cov_1) ",
+                      A*(..beta_2_2 + beta_0_ind + ..beta_3_2*cov_1 + beta_1_ind*cov_1) ",
                  link="logit")
   
   def <- defData(def, varname = "y_3",dist="binary",  
                  formula = "..beta_0 + ..beta_1_3*cov_1 +
-                      A*(beta_2_3 + beta_0_ind + beta_3_3*cov_1 + beta_1_ind*cov_1) ",
+                      A*(..beta_2_3 + beta_0_ind + ..beta_3_3*cov_1 + beta_1_ind*cov_1) ",
                  link="logit")
   def <- defData(def, varname = "y_4",dist="binary",  
                  formula = "..beta_0 + ..beta_1_4*cov_1 +
-                      A*(beta_2_4 + beta_0_ind + beta_3_4*cov_1 + beta_1_ind*cov_1) ",
+                      A*(..beta_2_4 + beta_0_ind + ..beta_3_4*cov_1 + beta_1_ind*cov_1) ",
                  link="logit")
   #---Generate data---#
   ds <- genData(n_train, def)
@@ -95,9 +76,8 @@ mvo_model <- function(iter, generated_data,mod){
     chains = 4L,
     parallel_chains = 4L,
     iter_warmup = 500,
-    iter_sampling = 200,
-    show_messages = FALSE,
-    adapt_delta = 0.9)
+    iter_sampling = 2500,
+    show_messages = FALSE)
   
   diagnostics_df <- as_draws_df(fit$sampler_diagnostics())
   div <- sum(diagnostics_df[, 'divergent__'])
@@ -118,7 +98,7 @@ mvo_model <- function(iter, generated_data,mod){
   beta_2_3 <- draws_dt$beta.1.3.
   beta_2_4 <- draws_dt$beta.1.4.
   
-  beta_3_1 <- draws_dt$beta.2.1.#trt main effect
+  beta_3_1 <- draws_dt$beta.2.1.#interaction main effect
   beta_3_2 <- draws_dt$beta.2.2.
   beta_3_3 <- draws_dt$beta.2.3.
   beta_3_4 <- draws_dt$beta.2.4.
@@ -139,13 +119,12 @@ mvo_model <- function(iter, generated_data,mod){
   beta_star_1 <- draws_dt[,c(grep("^beta_star.1",colnames(draws_dt),value=TRUE))]
   beta_star_2 <- draws_dt[,c(grep("^beta_star.1",colnames(draws_dt),value=TRUE))]
   
-  
   res <- data.table(beta_0,beta_1_1,beta_1_2,beta_1_3,beta_1_4,
                     beta_2_1,beta_2_2,beta_2_3,beta_2_4,
                     beta_3_1,beta_3_2,beta_3_3,beta_3_4,
                     sigma_beta_1,sigma_beta_2,
                     sigma_1,sigma_2,
-                    tau_1,tau_2,tau_3,Phi_1,Phi_2,beta_star_1,beta_star_2,
+                    tau_1,tau_2,tau_3,Phi_1,Phi_2,beta_star_1,beta_star_2, 
                     div,tree_hit)
   res_m <- round(apply(res,2,mean),3)
   
@@ -154,32 +133,35 @@ mvo_model <- function(iter, generated_data,mod){
 s_train <- function(iter, beta_0=-0.7, beta_1_1=0.35,
                     beta_1_2=0.4,beta_1_3=0.38,
                     beta_1_4=0.42,
-                    beta_2=0.4, 
-                    beta_3=0.2,#controls the contribution from the two sources of variation. 
+                    beta_2_1=0.4, beta_2_2=0.39,
+                    beta_2_3=0.38,beta_2_4=0.41,
+                    beta_3_1=0.2,beta_3_2=0.19,
+                    beta_3_3=0.18,beta_3_4=0.21,
                     sigma_beta_0=0.2, sigma_beta_1=0.1, 
-                    sigma_beta_2 = 0.01,sigma_beta_3 = 0.025,
                     basestudy= c(.31, .29, .20, .20),
-                    n_train = 400,mod){
+                    n_train = 400, mod=mod){
   generated_data <- s_generate(beta_0=beta_0, beta_1_1=beta_1_1,beta_1_2=beta_1_2,beta_1_3=beta_1_3,#controls the contribution from the two sources of variation. 
-                               beta_1_4=beta_1_4, beta_2=beta_2,beta_3=beta_3,
-                               sigma_beta_0=sigma_beta_0, sigma_beta_1=sigma_beta_1,
-                               sigma_beta_2=sigma_beta_2,sigma_beta_3=sigma_beta_3,
-                               basestudy= basestudy,
+                               beta_1_4=beta_1_4, beta_2_1=beta_2_1,
+                               beta_2_2=beta_2_2,beta_2_3=beta_2_3,
+                               beta_3_1=beta_3_1,beta_3_2=beta_3_2,
+                               beta_3_3=beta_3_3,beta_3_4=beta_3_4,
+                                 basestudy= basestudy,sigma_beta_0=sigma_beta_0, 
+                               sigma_beta_1=sigma_beta_1, 
                                n_train = n_train)
   
   #mvo model
   mvo_results <- mvo_model(iter=iter,generated_data,mod)
   return(mvo_results)
 }
-bayes_result <- rbindlist(lapply(1, function(x) s_train(x,beta_0=-0.7, beta_1_1=0.35,
-                                                        beta_1_2=0.4,beta_1_3=0.38,
-                                                        beta_1_4=0.42,
-                                                        beta_2=0.4, 
-                                                        beta_3=0.2,#controls the contribution from the two sources of variation. 
-                                                        sigma_beta_0=0.2, sigma_beta_1=0.1, 
-                                                        sigma_beta_2 = 0.01,sigma_beta_3 = 0.025,
-                                                        basestudy= c(.31, .29, .20, .20),
-                                                        n_train = 400,mod=mod)))
+# bayes_result <- rbindlist(lapply(1, function(x) s_train(x,beta_0=-0.7, beta_1_1=0.35,
+#                                                         beta_1_2=0.4,beta_1_3=0.38,
+#                                                         beta_1_4=0.42,
+#                                                         beta_2=0.4, 
+#                                                         beta_3=0.2,#controls the contribution from the two sources of variation. 
+#                                                         sigma_beta_0=0.2, sigma_beta_1=0.1, 
+#                                                         sigma_beta_2 = 0.01,sigma_beta_3 = 0.025,
+#                                                         basestudy= c(.31, .29, .20, .20),
+#                                                         n_train = 400,mod=mod)))
 
 # save(bayes_result,file="./bayes_result.rda")
 # 
@@ -191,18 +173,19 @@ job <- Slurm_lapply(
   beta_0=-0.7, beta_1_1=0.35,
   beta_1_2=0.4,beta_1_3=0.38,
   beta_1_4=0.42,
-  beta_2=0.4, 
-  beta_3=0.2,#controls the contribution from the two sources of variation. 
+  beta_2_1=0.4, beta_2_2=0.39,
+  beta_2_3=0.38,beta_2_4=0.41,
+  beta_3_1=0.2,beta_3_2=0.19,
+  beta_3_3=0.18,beta_3_4=0.21,
   sigma_beta_0=0.2, sigma_beta_1=0.1, 
-  sigma_beta_2 = 0.01,sigma_beta_3 = 0.025,
   basestudy= c(.31, .29, .20, .20),
-  n_train = 400,mod=mod,
+  n_train = 400, mod=mod,
   njobs = 50,
   mc.cores = 4L,
-  job_name = "mvo_10",
+  job_name = "mvo_14",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
-  sbatch_opt = list(time = "10:00:00", partition = "cpu_short", `mem-per-cpu` = "5G"),
+  sbatch_opt = list(time = "8:00:00", partition = "cpu_short", `mem-per-cpu` = "5G"),
   export = c("s_generate", "mvo_model"),
   overwrite = TRUE
 )
@@ -210,20 +193,19 @@ job <- Slurm_lapply(
 
 res <- Slurm_collect(job)
 res <- rbindlist(res)
-save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_ordinal_hier_binary.rda")
+save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_ordinal_hier_binary_v2.rda")
 
 
 
 
 ####--plot---#####
-# bayes_result <- res
-# gener_y1 <- data.frame(iter=1,
-#                        beta_0= -0.7,
-#                        beta_1=0.5,
-#                        beta_2=0.4,
-#                        beta_3=0.2,#controls the contribution from the two sources of variation.
-#                        sigma_beta_0=0.2,
-#                        sigma_beta_1=0.1,
+# bayes_result <- res_m
+# #the ordinal outcome
+# gener_y4 <- data.frame(iter=1,
+#                        beta_0=-0.7, 
+#                        beta_1_4=0.35,
+#                        beta_2_4=0.4,
+#                        beta_3_4=0.2,
 #                        tau_1= -0.8,
 #                        tau_2= 0.41,
 #                        tau_3= 1.39,
