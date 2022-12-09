@@ -8,7 +8,7 @@ library(slurmR)
 library(dplyr)
 library(ggplot2)
 set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
-mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/mixed_hier_ord_binary_2cov.stan");
+mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/mixed_hier_ord_binary_2cov_v2.stan");
 
 
 #mod <- cmdstan_model("./mixed_hier_ord_binary_2cov.stan");
@@ -150,7 +150,7 @@ job <- Slurm_lapply(
   n_train = 400, mod=mod,
   njobs = 50,
   mc.cores = 4L,
-  job_name = "mvo_16",
+  job_name = "mvo_17",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
   sbatch_opt = list(time = "8:00:00", partition = "cpu_short", `mem-per-cpu` = "5G"),
