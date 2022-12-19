@@ -84,6 +84,6 @@ model {
 generated quantities {
   corr_matrix[(D+1)] Phi_c[(P+1)];
   for (j in 1:(P+1)){
-  Phi_c[j]= L_Phi[j] * L_Phi[j]';
+    Phi_c[j]= L_Phi[j] * L_Phi[j]';
   }
 }
