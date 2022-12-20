@@ -8,10 +8,10 @@ library(slurmR)
 library(dplyr)
 library(ggplot2)
 set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
-mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/mixed_hier_ord_binary_2cov_v2.stan");
+mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/mixed_hier_ord_binary_2cov_v3.stan");
 
 
-#mod <- cmdstan_model("./mixed_hier_ord_binary_2cov_v2.stan");
+#mod <- cmdstan_model("./mixed_hier_ord_binary_2cov_v3.stan");
 s_generate <- function(sigma_beta_0=0.2, sigma_beta_1=0.1,
                        sigma_beta_2 = 0.1,sigma_beta_3 = 0.09,
                        sigma_beta_4 = 0.12,sigma_beta_5 = 0.09,
@@ -184,7 +184,7 @@ job <- Slurm_lapply(
   n_train = 400, mod=mod,
   njobs = 50,
   mc.cores = 4L,
-  job_name = "mvo_21",
+  job_name = "mvo_32",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
   sbatch_opt = list(time = "8:00:00", partition = "cpu_short", `mem-per-cpu` = "5G"),
@@ -195,7 +195,7 @@ job <- Slurm_lapply(
 
 res <- Slurm_collect(job)
 res <- rbindlist(res)
-save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_hier_ord_bi_3c_2b_cov.rda")
+save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_hier_ord_bi_3c_2b_cov_shrink.rda")
 
 #for n=900
 #bayes_result <- rbind(res,res_2)
