@@ -313,62 +313,63 @@ res <- rbindlist(res)
 save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_hier_ord_bi_3c_2b_cov_rdn_gen_v3.rda")
 
 #for n=900
-#bayes_result <- rbind(res,res_2)
-#bayes_result$iter <- 1:dim(bayes_result)[1]
+bayes_result <- rbind(res,res_2)
+bayes_result$iter <- 1:dim(bayes_result)[1]
 
 ####--plot---#####
-# bayes_result <- res[res$div <=100,]
-# dim(bayes_result)#100
-# #the ordinal outcome
-# 
-# 
-# gener_y4 <- data.frame(iter=1,
-#                       beta_cov1= bayes_result$m_cov1_g1_true,
-#                        beta_cov2 = bayes_result$m_cov2_g1_true,
-#                        beta_cov3 = bayes_result$m_cov3_g1_true,
-#                        beta_cov4 = bayes_result$m_cov4_g1_true,
-#                        beta_cov5 = bayes_result$m_cov5_g1_true,
-#                        beta_trt = bayes_result$beta_trt_g1_true,
-#                        beta_inter_cov1=bayes_result$beta_int1_g1_true,
-#                        beta_inter_cov2=bayes_result$beta_int2_g1_true,
-#                        beta_inter_cov3=bayes_result$beta_int3_g1_true,
-#                        beta_inter_cov4=bayes_result$beta_int4_g1_true,
-#                        beta_inter_cov5=bayes_result$beta_int5_g1_true,
-#                        beta_star_trt=0.38,
-#                        beta_star_cov1=0.15,
-#                        beta_star_cov2=-0.09,
-#                        beta_star_cov3=0.09,
-#                        beta_star_cov4= 0.05,
-#                        beta_star_cov5= -0.04,
-#                        tau_1= -0.8,
-#                        tau_2= 0.41,
-#                        tau_3= 1.39,
-#                       sigma_beta_trt=0.02,
-#                        sigma_beta_cov1=0.01, sigma_beta_cov2=0.01,
-#                        sigma_beta_cov3 = 0.01,sigma_beta_cov4 = 0.01,
-#                        sigma_beta_cov5 = 0.01,
-#                        Md="True value")
-# M_MVO <- subset(bayes_result,select=c(iter,beta_cov1,beta_cov2,beta_cov3,
-#                                       beta_cov4,beta_cov5,
-#                                       beta_trt,beta_inter_cov1,
-#                                       beta_inter_cov2,beta_inter_cov3,
-#                                       beta_inter_cov4,beta_inter_cov5,
-#                                       tau_1,tau_2,tau_3,beta_star_trt,beta_star_cov1,
-#                                       beta_star_cov2,
-#                                       beta_star_cov3,beta_star_cov4,beta_star_cov5,
-#                                       sigma_beta_trt,
-#                                       sigma_beta_cov1,sigma_beta_cov2,sigma_beta_cov3,sigma_beta_cov4,
-#                                       sigma_beta_cov5))
-# M_MVO$Md <- "Estimated"
-# D_all <-rbind(M_MVO,gener_y4)
-# 
-# M_data <- reshape2::melt(D_all,id=c("iter","Md"))
-# 
-# ggplot(M_data, aes(x=variable, y=value,fill=Md)) +
-#   geom_boxplot(width=0.25,position = position_dodge(width = 0.5))+ theme_minimal()+
-#   labs(title="MVO: Posterior mean of paramters (n=400, prior of sigma_j ~ exp(mean=0.01))",
-#        y = "Posterior mean")+facet_wrap(~variable,scale=c("free"), labeller = label_parsed)+
-#   theme(strip.text.x = element_blank())+labs(fill="CLASS")
+bayes_result <- res[res$div <=100,]
+dim(bayes_result)#100
+#the ordinal outcome
+
+
+gener_y4 <- data.frame(iter=1,
+                       beta_0=-0.3,
+                      beta_cov1= bayes_result$m_cov1_g1_true,
+                       beta_cov2 = bayes_result$m_cov2_g1_true,
+                       beta_cov3 = bayes_result$m_cov3_g1_true,
+                       beta_cov4 = bayes_result$m_cov4_g1_true,
+                       beta_cov5 = bayes_result$m_cov5_g1_true,
+                       beta_trt = bayes_result$beta_trt_g1_true,
+                       beta_inter_cov1=bayes_result$beta_int1_g1_true,
+                       beta_inter_cov2=bayes_result$beta_int2_g1_true,
+                       beta_inter_cov3=bayes_result$beta_int3_g1_true,
+                       beta_inter_cov4=bayes_result$beta_int4_g1_true,
+                       beta_inter_cov5=bayes_result$beta_int5_g1_true,
+                       beta_star_trt=0.38,
+                       beta_star_cov1=0.15,
+                       beta_star_cov2=-0.09,
+                       beta_star_cov3=0.09,
+                       beta_star_cov4= 0.05,
+                       beta_star_cov5= -0.04,
+                       tau_1= -0.8,
+                       tau_2= 0.41,
+                       tau_3= 1.39,
+                      sigma_beta_trt=0.02,
+                       sigma_beta_cov1=0.01, sigma_beta_cov2=0.01,
+                       sigma_beta_cov3 = 0.01,sigma_beta_cov4 = 0.01,
+                       sigma_beta_cov5 = 0.01,
+                       Md="True value")
+M_MVO <- subset(bayes_result,select=c(iter,beta_0,beta_cov1,beta_cov2,beta_cov3,
+                                      beta_cov4,beta_cov5,
+                                      beta_trt,beta_inter_cov1,
+                                      beta_inter_cov2,beta_inter_cov3,
+                                      beta_inter_cov4,beta_inter_cov5,
+                                      tau_1,tau_2,tau_3,beta_star_trt,beta_star_cov1,
+                                      beta_star_cov2,
+                                      beta_star_cov3,beta_star_cov4,beta_star_cov5,
+                                      sigma_beta_trt,
+                                      sigma_beta_cov1,sigma_beta_cov2,sigma_beta_cov3,sigma_beta_cov4,
+                                      sigma_beta_cov5))
+M_MVO$Md <- "Estimated"
+D_all <-rbind(M_MVO,gener_y4)
+
+M_data <- reshape2::melt(D_all,id=c("iter","Md"))
+
+ggplot(M_data, aes(x=variable, y=value,fill=Md)) +
+  geom_boxplot(width=0.25,position = position_dodge(width = 0.5))+ theme_minimal()+
+  labs(title="MVO: Posterior mean of paramters (n=400, prior of sigma_j ~ exp(mean=0.01))",
+       y = "Posterior mean")+facet_wrap(~variable,scale=c("free"), labeller = label_parsed)+
+  theme(strip.text.x = element_blank())+labs(fill="CLASS")
 
 # # ###---Check data generation---#
 # odds <- function(x){
