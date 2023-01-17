@@ -407,7 +407,7 @@ job <- Slurm_lapply(
   job_name = "mvo_46",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
-  sbatch_opt = list(time = "4:00:00", partition = "cpu_dev", `mem-per-cpu` = "5G"),
+  sbatch_opt = list(time = "18:00:00", partition = "cpu_medium", `mem-per-cpu` = "8G"),
   export = c("s_generate", "mvo_model","univt_model","s_train","s_test","optim_mvo_trt","optim_univt_trt",
              "PCD"),
   overwrite = TRUE
@@ -419,6 +419,9 @@ res <- rbindlist(res)
 save(res, file = "/gpfs/data/troxellab/danniw/data/mixed_twolayerhier_gamma1_vary_intercept_11levels_sigma001.rda")
 
 ####--plot---#####
+#summary(res[,97:111])
+# bayes_result <- res[res$div_mvo <=100,]
+
 # bayes_result <- res[res$div_mvo <=100,]
 # dim(bayes_result)#0.01:71/0.1:41/1:79
 # #the ordinal outcome
