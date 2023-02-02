@@ -8,9 +8,9 @@ library(slurmR)
 library(dplyr)
 library(ggplot2)
 set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
-univt_mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/ord_3c_2b_cov.stan");
+univt_mod <- cmdstan_model("/gpfs/data/troxellab/danniw/r/logistic.stan");
 
-#univt_mod <- cmdstan_model("./ord_3c_2b_cov.stan");
+#univt_mod <- cmdstan_model("./logistic.stan");
 s_generate <- function(n_train = 500) {
   #---generate training data---#
   
@@ -27,7 +27,8 @@ s_generate <- function(n_train = 500) {
 }
 
 univt_model <- function(generated_data, univt_mod){
-  #set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
+  set_cmdstan_path(path = "/gpfs/share/apps/cmdstan/2.25.0")
+
   
   studydata <- list(
     N = nrow(generated_data), y=generated_data$y, 
@@ -50,8 +51,8 @@ univt_model <- function(generated_data, univt_mod){
   draws_dt <- data.table(as_draws_df(fit_univt$draws()))
   
   
-  beta_trt <- draws_dt$`beta_inter[1]`
-  beta_inter_cov1 <- draws_dt$`beta_inter[2]`
+  beta_trt <- draws_dt$beta_trt
+  beta_inter_cov1 <- draws_dt$beta_inter
 
   
   res_univt <- data.table(beta_trt,beta_inter_cov1,
@@ -60,7 +61,7 @@ univt_model <- function(generated_data, univt_mod){
   return(res_univt)
   
 }
-s_train <- function(n_train = 400, univt_mod=univt_mod){
+s_train <- function(n_train = 500, univt_mod=univt_mod){
   #---train the model---#
   generated_data <- s_generate(n_train = n_train)
   univt_results <- univt_model(generated_data,univt_mod)
@@ -76,7 +77,7 @@ opt_univt_trt <- function(cov, coefs,thresh = 0){
   #fixed effect in the interaction term
   beta_inter <- as.matrix(coefs[,c("beta_inter_cov1")])
   
-  hte.distr <- apply(cov,1, function(x) beta_trt + beta_inter%*%x)
+  hte.distr <- apply(as.matrix(cov),1, function(x) beta_trt + beta_inter*x)
   prob.tbi.tmp <- apply(hte.distr,2, function(x) x < thresh)
   tbi <- apply(prob.tbi.tmp, 2, mean)
   opt_univt_trt  <- sapply(tbi, function(x) ifelse(x > 0.5, 1, 0)) #if Pr(tbi < 0) greater than 0.5, recommend CCP
@@ -114,8 +115,7 @@ PCD <- function(train_coef,thresh=0,
                 n_test = n_test
                 ){
   ##---Proportion of correct decisions on test data---##
-  test_data <- s_test_generate(basestudy= basestudy,
-                               n_test = n_test)
+  test_data <- s_test_generate(n_test = n_test)
   ##Given patients characteristics, derive optimal treatment for each patients using the true value in data generating process
   cov <- test_data$cov_1
   
@@ -132,7 +132,7 @@ PCD <- function(train_coef,thresh=0,
   
   PCD_by_y <- test_data[,
             .(pcd_by_ydiff = mean(optimal_trt==trt_univt),pcd_by_or = mean(trt_true_or == trt_univt)),
-            keyby = .(y_diff_abs)]
+            keyby = .(y_diff)]
   
   
   return(PCD_by_y)
@@ -140,29 +140,22 @@ PCD <- function(train_coef,thresh=0,
 }
 
 bayes_single_rep <- function(iter,
-                              n_train = 400,
+                              n_train = 500,
                              n_test=2000,univt_mod=univt_mod,thresh=0) {
   
-  train_coef <- s_train(  basestudy= basestudy,
-                        n_train = n_train,univt_mod=univt_mod)
+  train_coef <- s_train(n_train = n_train,univt_mod=univt_mod)
   
   test_PCD <- PCD(train_coef=train_coef,thresh=0,
-                 basestudy= basestudy,
                   n_test = n_test) 
-  
-  univt_PCD <- test_PCD$univt_PCD
-  or_PCD <- test_PCD$or_PCD
   
   div_univt <- mean(train_coef$div)
   return(data.table(iter,
-                    univt_PCD,
-                  or_PCD,
+                    test_PCD,
                     div_univt))
                     
 }
-# bayes_result <- rbindlist(lapply(1:50, function(x) bayes_single_rep(x,
-#                                                                     basestudy= c(0.100, 0.107, 0.095, 0.085, 0.090, 0.090, 0.108, 0.100, 0.090, 0.075, 0.060),
-#                                                         n_train = 400, n_test=2000,univt_mod=univt_mod)))
+# bayes_result <- rbindlist(lapply(1:2, function(x) bayes_single_rep(x,
+#                                                         n_train = 500, n_test=2000,univt_mod=univt_mod)))
 
 # save(bayes_result,file="./PCD_compareITR_y_OR.rda")
 # 
@@ -174,10 +167,10 @@ job <- Slurm_lapply(
   n_train = 500, n_test=2000,univt_mod=univt_mod,
   njobs = 60,
   mc.cores = 4L,
-  job_name = "mvo_56",
+  job_name = "mvo_65",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
-  sbatch_opt = list(time = "18:00:00", partition = "cpu_medium", `mem-per-cpu` = "8G"),
+  sbatch_opt = list(time = "4:00:00", partition = "cpu_dev", `mem-per-cpu` = "8G"),
   export = c("s_generate", "univt_model","s_train","opt_univt_trt",
              "s_test_generate","PCD"),
   overwrite = TRUE
@@ -186,7 +179,7 @@ job <- Slurm_lapply(
 
 res <- Slurm_collect(job)
 res <- rbindlist(res)
-save(res, file = "/gpfs/data/troxellab/danniw/data/twolayer_n500_PCD_001.rda")
+save(res, file = "/gpfs/data/troxellab/danniw/data/logistic.rda")
 
 ####--plot---#####
 #check proportion of levels of outcomes
