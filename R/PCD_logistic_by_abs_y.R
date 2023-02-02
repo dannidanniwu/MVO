@@ -103,8 +103,8 @@ s_test_generate <- function(n_test = 2000) {
                  formula = "1*(y_trt0 > y_trt1)",
                  dist="nonrandom")
   
-  def <- defData(def, varname = "y_diff",
-                     formula = "y_trt1 - y_trt0",
+  def <- defData(def, varname = "y_diff_abs",
+                     formula = "abs(y_trt1 - y_trt0)",
                      dist="nonrandom")
   #---Generate data---#
   dd <- genData(n_test, def)
@@ -131,8 +131,8 @@ PCD <- function(train_coef,thresh=0,
   test_data[ , `:=` (trt_univt= trt_univt,trt_true_or= trt_true_or)]
   
   PCD_by_y <- test_data[,
-            .(pcd_by_ydiff = mean(optimal_trt==trt_univt),pcd_by_or = mean(trt_true_or == trt_univt)),
-            keyby = .(y_diff)]
+            .(pcd_by_ydiff = mean(optimal_trt==trt_univt),pcd_by_or = mean(trt_true_or == trt_univt),.N),
+            keyby = .(y_diff_abs)]
   
   
   return(PCD_by_y)
@@ -167,7 +167,7 @@ job <- Slurm_lapply(
   n_train = 500, n_test=2000,univt_mod=univt_mod,
   njobs = 60,
   mc.cores = 4L,
-  job_name = "mvo_65",
+  job_name = "mvo_66",
   tmp_path = "/gpfs/data/troxellab/danniw/scratch",
   plan = "wait",
   sbatch_opt = list(time = "4:00:00", partition = "cpu_dev", `mem-per-cpu` = "8G"),
@@ -184,8 +184,8 @@ save(res, file = "/gpfs/data/troxellab/danniw/data/logistic.rda")
 ####--plot---#####
 #check proportion of levels of outcomes
 # summary(res[, 97:113])
-# bayes_result <- res[res$div_mvo <= 100, ]
-# dim(bayes_result)#0.01:71/0.1:41/1:79
+bayes_result <- res[res$div_univt <= 100, ]
+dim(bayes_result)#0.01:71/0.1:41/1:79
 # #the ordinal outcome
 # 
 # 
@@ -321,14 +321,17 @@ save(res, file = "/gpfs/data/troxellab/danniw/data/logistic.rda")
 #   geom_boxplot()+
 #   labs(title="PCD difference based on simualtions with low div (no individual beta's layer, outcome specific tau)",
 #        y = "PCD difference")
-# # 
-bayes_result <- res[res$div_mvo <= 100, ]
-dim(bayes_result)
-#bayes_result$y_diff_abs <- 0:10
-#PCD<- bayes_result[,c("iter","y_diff_abs","mvo_PCD","univt_PCD")]
+#
+# #####PCD#########
+# PCD$diff <- PCD$mvo_PCD -PCD$univt_PCD
+# round(summary(PCD$diff),3)
+# ggplot(PCD, aes(y=diff)) +
+#   geom_boxplot()+
+#   labs(title="PCD difference based on simualtions with low div (no individual beta's layer, outcome specific tau)",
+#        y = "PCD difference")
+#
 
-PCD<- bayes_result[,c("iter","y_diff_abs","pcd_univt","pcd_mvo")]
-
+PCD<- bayes_result[,c("iter","y_diff_abs","pcd_by_ydiff","pcd_by_or")]
 
 m_data <- reshape2::melt(PCD,id=c("iter","y_diff_abs"))
 m_data$y_diff_abs <- as.factor(m_data$y_diff_abs)
@@ -338,5 +341,5 @@ ggplot(m_data, aes(x=y_diff_abs, y=value,fill= variable)) +
        y = "PCD", x= "abs(difference in potential outcomes)")+
   labs(fill= "Criteria")
 
-bayes_result[,.(univt_PCD = round(mean(pcd_univt),3),mvo_PCD = round(mean(pcd_mvo),3), N= round(mean(N),0)),
-             keyby = .(y_diff_abs)]
+bayes_result[,.(m_pcd_ydiff = round(mean(pcd_by_ydiff),3),m_pcd_by_or = round(mean(pcd_by_or),3),m_N= round(mean(N),0)),
+                      keyby = .(y_diff_abs)]
