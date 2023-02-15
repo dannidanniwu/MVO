@@ -19,14 +19,8 @@ s_generate <- function(n_train = 500) {
   def <- defData(def, varname="cov_1", formula = 0, 
                  variance= 1, dist="normal") 
   def <- defData(def, varname = "y", dist = "binary",
-                 formula = "0.35*cov_1 + A*(-0.4 + 0.2*cov_1)",
+                 formula = "0.35*cov_1 + A*(-0.08 + 0.2*cov_1)",
                  link = "logit")
-  # 0.35x=0.55x-0.4
-  # 0=0.2x-0.4
-  # 0.2x=0.4
-  # x=2
-  # x>2: a_opt=0
-  # x<2: a_opt=1
   
   #---Generate data---#
   dd <- genData(n_train, def)
@@ -100,17 +94,17 @@ s_test_generate <- function(n_test = 2000) {
 
   #define canonical parameter for 4 outcomes: 
   def <- defData(def, varname = "y_trt1", dist="binary",
-                 formula = "0.35*cov_1 - 0.4*1 + 0.2*cov_1", link="logit")
+                 formula = "0.35*cov_1 - 0.08*1 + 0.2*cov_1", link="logit")
  
   def <- defData(def, varname = "y_trt0", dist="binary",
                  formula = "0.35*cov_1",
                  link="logit")
   #the optimsl treatment decision based on potential outcomes
   def <- defData(def, varname = "optimal_trt",
-                 formula = "1*(y_trt0 > y_trt1)",
+                 formula = "1*(y_trt1 < y_trt0)",
                  dist="nonrandom")
   def <- defData(def, varname = "logOR",
-                 formula = "- 0.4*1 + 0.2*cov_1",
+                 formula = "-0.08*1 + 0.2*cov_1",
                  dist="nonrandom")
 
   
@@ -132,11 +126,11 @@ PCD <- function(train_coef,thresh=0,
   trt_univt <- opt_univt_trt(cov=cov, coefs = train_coef,thresh = 0)
   
   #optimal decision based on logOR
-  theta_diff <- -0.4 + 0.2%*%cov
-  
+  theta_diff <- -0.08 + 0.2%*%cov
+
   trt_true_or <- as.vector(ifelse(theta_diff >=0,0,1))
   
-  test_data$logOR_sec = cut(test_data$logOR, c(-Inf,-1.1,-0.9,-0.7,-0.5,-0.3,-0.1,0.1,0.3,Inf))
+  test_data$logOR_sec = cut(test_data$logOR, c(-Inf,-0.3,-0.2,-0.1,0,0.1,0.2,0.3,Inf))
   
   test_data[ , `:=` (trt_univt= trt_univt,trt_true_or= trt_true_or)]
   
